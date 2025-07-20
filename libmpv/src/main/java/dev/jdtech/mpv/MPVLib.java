@@ -15,6 +15,10 @@ import androidx.annotation.NonNull;
 @SuppressWarnings("unused")
 public class MPVLib {
 
+    private long nativeInstance;
+    private final List<EventObserver> observers = new ArrayList<>();
+    private final List<LogObserver> log_observers = new ArrayList<>();
+
     static {
         String[] libs = {"mpv", "player"};
         for (String lib : libs) {
@@ -22,57 +26,120 @@ public class MPVLib {
         }
     }
 
-    public static native void create(Context appctx);
-    public static native void init();
-    public static native void destroy();
-    public static native void attachSurface(Surface surface);
-    public static native void detachSurface();
+    public MPVLib() {
+        nativeInstance = 0;
+    }
 
-    public static native void command(@NonNull String[] cmd);
+    public void create(Context appctx) {
+        nativeInstance = nativeCreate(this, appctx);
+    }
 
-    public static native int setOptionString(@NonNull String name, @NonNull String value);
+    private native long nativeCreate(MPVLib thiz, Context appctx);
 
-    // FIXME: get methods are actually nullable
-    public static native Integer getPropertyInt(@NonNull String property);
-    public static native void setPropertyInt(@NonNull String property, @NonNull Integer value);
-    public static native Double getPropertyDouble(@NonNull String property);
-    public static native void setPropertyDouble(@NonNull String property, @NonNull Double value);
-    public static native Boolean getPropertyBoolean(@NonNull String property);
-    public static native void setPropertyBoolean(@NonNull String property, @NonNull Boolean value);
-    public static native String getPropertyString(@NonNull String property);
-    public static native void setPropertyString(@NonNull String property, @NonNull String value);
+    public void init() {
+        nativeInit(nativeInstance);
+    }
 
-    public static native void observeProperty(@NonNull String property, @Format int format);
+    private native void nativeInit(long instance);
 
-    private static final List<EventObserver> observers = new ArrayList<>();
+    public void destroy() {
+        nativeDestroy(nativeInstance);
+        nativeInstance = 0;
+    }
 
-    private static final List<LogObserver> log_observers = new ArrayList<>();
+    private native void nativeDestroy(long instance);
 
-    public static void addObserver(EventObserver o) {
+    public void attachSurface(Surface surface) {
+        nativeAttachSurface(nativeInstance, surface);
+    }
+
+    private native void nativeAttachSurface(long instance, Surface surface);
+
+    public void detachSurface() {
+        nativeDetachSurface(nativeInstance);
+    }
+
+    private native void nativeDetachSurface(long instance);
+
+    public void command(@NonNull String[] cmd) {
+        nativeCommand(nativeInstance, cmd);
+    }
+
+    private native void nativeCommand(long instance, @NonNull String[] cmd);
+
+    public int setOptionString(@NonNull String name, @NonNull String value) {
+        return nativeSetOptionString(nativeInstance, name, value);
+    }
+
+    private native int nativeSetOptionString(long instance, @NonNull String name, @NonNull String value);
+
+    public Integer getPropertyInt(@NonNull String property) {
+        return nativeGetPropertyInt(nativeInstance, property);
+    }
+
+    private native int nativeGetPropertyInt(long instance, @NonNull String property);
+
+    public void setPropertyInt(@NonNull String property, @NonNull Integer value) {
+        nativeSetPropertyInt(nativeInstance, property, value);
+    }
+
+    private native int nativeSetPropertyInt(long instance, @NonNull String property, @NonNull Integer value);
+
+    public Double getPropertyDouble(@NonNull String property) {
+        return nativeGetPropertyDouble(nativeInstance, property);
+    }
+
+    private native Double nativeGetPropertyDouble(long instance, @NonNull String property);
+
+    public void setPropertyDouble(@NonNull String property, @NonNull Double value) {
+        nativeSetPropertyDouble(nativeInstance, property, value);
+    }
+
+    private native void nativeSetPropertyDouble(long instance, @NonNull String property, @NonNull Double value);
+
+    public Boolean getPropertyBoolean(@NonNull String property) {
+        return nativeGetPropertyBoolean(nativeInstance, property);
+    }
+
+    private native Boolean nativeGetPropertyBoolean(long instance, @NonNull String property);
+
+    public void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
+        nativeSetPropertyBoolean(nativeInstance, property, value);
+    }
+
+    private native void nativeSetPropertyBoolean(long instance, @NonNull String property, @NonNull Boolean value);
+
+    public String getPropertyString(@NonNull String property) {
+        return nativeGetPropertyString(nativeInstance, property);
+    }
+
+    private native String nativeGetPropertyString(long instance, @NonNull String property);
+
+    public void setPropertyString(@NonNull String property, @NonNull String value) {
+        nativeSetPropertyString(nativeInstance, property, value);
+    }
+
+    private native void nativeSetPropertyString(long instance, @NonNull String property, @NonNull String value);
+
+    public void observeProperty(@NonNull String property, @Format int format) {
+        nativeObserveProperty(nativeInstance, property, format);
+    }
+
+    private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
+
+    public void addObserver(EventObserver o) {
         synchronized (observers) {
             observers.add(o);
         }
     }
 
-    public static void removeObserver(EventObserver o) {
+    public void removeObserver(EventObserver o) {
         synchronized (observers) {
             observers.remove(o);
         }
     }
 
-    public static void removeObservers() {
-        synchronized (observers) {
-            observers.clear();
-        }
-    }
-
-    public static void removeLogObservers() {
-        synchronized (log_observers) {
-            log_observers.clear();
-        }
-    }
-
-    public static void eventProperty(String property, long value) {
+    public void eventProperty(String property, long value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
                 o.eventProperty(property, value);
@@ -80,7 +147,7 @@ public class MPVLib {
         }
     }
 
-    public static void eventProperty(String property, double value) {
+    public void eventProperty(String property, double value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
                 o.eventProperty(property, value);
@@ -88,7 +155,7 @@ public class MPVLib {
         }
     }
 
-    public static void eventProperty(String property, boolean value) {
+    public void eventProperty(String property, boolean value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
                 o.eventProperty(property, value);
@@ -96,7 +163,7 @@ public class MPVLib {
         }
     }
 
-    public static void eventProperty(String property, String value) {
+    public void eventProperty(String property, String value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
                 o.eventProperty(property, value);
@@ -104,7 +171,7 @@ public class MPVLib {
         }
     }
 
-    public static void eventProperty(String property) {
+    public void eventProperty(String property) {
         synchronized (observers) {
             for (EventObserver o : observers) {
                 o.eventProperty(property);
@@ -112,7 +179,7 @@ public class MPVLib {
         }
     }
 
-    public static void event(@Event int eventId) {
+    public void event(@Event int eventId) {
         synchronized (observers) {
             for (EventObserver o : observers) {
                 o.event(eventId);
@@ -120,19 +187,19 @@ public class MPVLib {
         }
     }
 
-    public static void addLogObserver(LogObserver o) {
+    public void addLogObserver(LogObserver o) {
         synchronized (log_observers) {
             log_observers.add(o);
         }
     }
 
-    public static void removeLogObserver(LogObserver o) {
+    public void removeLogObserver(LogObserver o) {
         synchronized (log_observers) {
             log_observers.remove(o);
         }
     }
 
-    public static void logMessage(String prefix, @LogLevel int level, String text) {
+    public void logMessage(String prefix, @LogLevel int level, String text) {
         synchronized (log_observers) {
             for (LogObserver o : log_observers) {
                 o.logMessage(prefix, level, text);
@@ -143,10 +210,15 @@ public class MPVLib {
     public interface EventObserver {
 
         void eventProperty(@NonNull String property);
+
         void eventProperty(@NonNull String property, long value);
+
         void eventProperty(@NonNull String property, double value);
+
         void eventProperty(@NonNull String property, boolean value);
+
         void eventProperty(@NonNull String property, @NonNull String value);
+
         void event(@Event int eventId);
     }
 
