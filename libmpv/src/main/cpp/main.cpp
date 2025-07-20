@@ -88,10 +88,10 @@ jni_func(void, nativeCommand, jlong instance, jobjectArray jarray) {
     if (!mpv_instance->mpv)
         die("Cannot run command: mpv is not initialized");
     if (len >= ARRAYLEN(arguments))
-        die("too many command arguments");
+        die("Cannot run command: too many arguments");
 
     for (int i = 0; i < len; ++i)
-        arguments[i] = env->GetStringUTFChars((jstring)env->GetObjectArrayElement(jarray, i), NULL);
+        arguments[i] = env->GetStringUTFChars((jstring)env->GetObjectArrayElement(jarray, i), nullptr);
 
     mpv_command(mpv_instance->mpv, arguments);
 

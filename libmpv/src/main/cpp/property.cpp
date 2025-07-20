@@ -27,8 +27,8 @@ jni_func(jint, nativeSetOptionString, jlong instance, jstring joption, jstring j
     if (!mpv_instance->mpv)
         die("mpv is not initialized");
 
-    const char *option = env->GetStringUTFChars(joption, NULL);
-    const char *value = env->GetStringUTFChars(jvalue, NULL);
+    const char *option = env->GetStringUTFChars(joption, nullptr);
+    const char *value = env->GetStringUTFChars(jvalue, nullptr);
 
     int result = mpv_set_option_string(mpv_instance->mpv, option, value);
 

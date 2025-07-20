@@ -18,15 +18,18 @@ public class MPVLib {
     private long nativeInstance;
     private final List<EventObserver> observers = new ArrayList<>();
     private final List<LogObserver> log_observers = new ArrayList<>();
+    private static Boolean nativeLoadComplete = false;
 
-    static {
-        String[] libs = {"mpv", "player"};
-        for (String lib : libs) {
-            System.loadLibrary(lib);
+    public static void loadNativeLibraries() {
+        if (!nativeLoadComplete) {
+            System.loadLibrary("mpv");
+            System.loadLibrary("player");
+            nativeLoadComplete = true;
         }
     }
 
     public MPVLib() {
+        loadNativeLibraries();
         nativeInstance = 0;
     }
 
@@ -139,6 +142,14 @@ public class MPVLib {
         }
     }
 
+    public void removeObservers() {
+        synchronized (observers) {
+            for (EventObserver o : observers) {
+                observers.remove(o);
+            }
+        }
+    }
+
     public void eventProperty(String property, long value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
@@ -196,6 +207,14 @@ public class MPVLib {
     public void removeLogObserver(LogObserver o) {
         synchronized (log_observers) {
             log_observers.remove(o);
+        }
+    }
+
+    public void removeLogObservers() {
+        synchronized (log_observers) {
+            for (LogObserver o : log_observers) {
+                log_observers.remove(o);
+            }
         }
     }
 

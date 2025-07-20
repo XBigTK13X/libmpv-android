@@ -9,7 +9,7 @@
 
 static void sendPropertyUpdateToJava(JNIEnv *env, MPVInstance* instance, mpv_event_property *prop) {
     jstring jprop = env->NewStringUTF(prop->name);
-    jstring jvalue = NULL;
+    jstring jvalue = nullptr;
     switch (prop->format) {
     case MPV_FORMAT_NONE:
         env->CallVoidMethod(instance->javaObject, mpv_MPVLib_eventProperty_S, jprop);
@@ -46,14 +46,12 @@ static inline bool invalid_utf8(unsigned char c) {
 }
 
 static void sendLogMessageToJava(JNIEnv *env, MPVInstance* instance, mpv_event_log_message *msg) {
-    // filter the most obvious cases of invalid utf-8, since Java would choke on it
-    const auto invalid_utf8 = [] (unsigned char c) {
-        return c == 0xc0 || c == 0xc1 || c >= 0xf5;
-    };
-    for (int i = 0; msg->text[i]; i++) {
-        if (invalid_utf8(static_cast<unsigned char>(msg->text[i])))
-            return;
-    }
+    // filter the most obvious cases of invalid utf-8
+    int invalid = 0;
+    for (int i = 0; msg->text[i]; i++)
+        invalid |= invalid_utf8((unsigned char) msg->text[i]);
+    if (invalid)
+        return;
 
     jstring jprefix = env->NewStringUTF(msg->prefix);
     jstring jtext = env->NewStringUTF(msg->text);
@@ -71,7 +69,6 @@ void *event_thread(void *arg) {
     auto instance = static_cast<MPVInstance*>(arg);
     JNIEnv *env = nullptr;
     acquire_jni_env(instance->vm, &env);
-
     if (!env)
         die("failed to acquire java env");
 
@@ -107,5 +104,5 @@ void *event_thread(void *arg) {
 
     instance->vm->DetachCurrentThread();
 
-    return NULL;
+    return nullptr;
 }
