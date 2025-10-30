@@ -16,6 +16,8 @@ import androidx.annotation.NonNull;
 public class MPVLib {
 
     private long nativeInstance;
+    private volatile boolean disposed;
+
     private final List<EventObserver> observers = new ArrayList<>();
     private final List<LogObserver> log_observers = new ArrayList<>();
     private static Boolean nativeLoadComplete = false;
@@ -31,112 +33,135 @@ public class MPVLib {
     public MPVLib() {
         loadNativeLibraries();
         nativeInstance = 0;
+        disposed = false;
     }
 
-    public void create(Context appctx) {
+    public synchronized void create(Context appctx) {
+        if (disposed || nativeInstance != 0) return;
         nativeInstance = nativeCreate(this, appctx);
     }
 
     private native long nativeCreate(MPVLib thiz, Context appctx);
 
-    public void init() {
+    public synchronized void init() {
+        if (disposed || nativeInstance == 0) return;
         nativeInit(nativeInstance);
     }
 
     private native void nativeInit(long instance);
 
-    public void destroy() {
-        nativeDestroy(nativeInstance);
+    public synchronized void destroy() {
+        if (disposed) return;
+        disposed = true;
+        long inst = nativeInstance;
         nativeInstance = 0;
+        if (inst != 0) nativeDestroy(inst);
+        observers.clear();
+        log_observers.clear();
     }
 
     private native void nativeDestroy(long instance);
 
-    public void attachSurface(Surface surface) {
+    public synchronized void attachSurface(Surface surface) {
+        if (disposed || nativeInstance == 0 || surface == null) return;
         nativeAttachSurface(nativeInstance, surface);
     }
 
     private native void nativeAttachSurface(long instance, Surface surface);
 
-    public void detachSurface() {
+    public synchronized void detachSurface() {
+        if (disposed || nativeInstance == 0) return;
         nativeDetachSurface(nativeInstance);
     }
 
     private native void nativeDetachSurface(long instance);
 
-    public void command(@NonNull String[] cmd) {
+    public synchronized void command(@NonNull String[] cmd) {
+        if (disposed || nativeInstance == 0 || cmd == null) return;
         nativeCommand(nativeInstance, cmd);
     }
 
     private native void nativeCommand(long instance, @NonNull String[] cmd);
 
-    public int setOptionString(@NonNull String name, @NonNull String value) {
+    public synchronized int setOptionString(@NonNull String name, @NonNull String value) {
+        if (disposed || nativeInstance == 0 || name == null || value == null) return -1;
         return nativeSetOptionString(nativeInstance, name, value);
     }
 
     private native int nativeSetOptionString(long instance, @NonNull String name, @NonNull String value);
 
-    public Integer getPropertyInt(@NonNull String property) {
+    public synchronized Integer getPropertyInt(@NonNull String property) {
+        if (disposed || nativeInstance == 0 || property == null) return null;
         return nativeGetPropertyInt(nativeInstance, property);
     }
 
     private native int nativeGetPropertyInt(long instance, @NonNull String property);
 
-    public void setPropertyInt(@NonNull String property, @NonNull Integer value) {
+    public synchronized void setPropertyInt(@NonNull String property, @NonNull Integer value) {
+        if (disposed || nativeInstance == 0 || property == null || value == null) return;
         nativeSetPropertyInt(nativeInstance, property, value);
     }
 
     private native int nativeSetPropertyInt(long instance, @NonNull String property, @NonNull Integer value);
 
-    public Double getPropertyDouble(@NonNull String property) {
+    public synchronized Double getPropertyDouble(@NonNull String property) {
+        if (disposed || nativeInstance == 0 || property == null) return null;
         return nativeGetPropertyDouble(nativeInstance, property);
     }
 
     private native Double nativeGetPropertyDouble(long instance, @NonNull String property);
 
-    public void setPropertyDouble(@NonNull String property, @NonNull Double value) {
+    public synchronized void setPropertyDouble(@NonNull String property, @NonNull Double value) {
+        if (disposed || nativeInstance == 0 || property == null || value == null) return;
         nativeSetPropertyDouble(nativeInstance, property, value);
     }
 
     private native void nativeSetPropertyDouble(long instance, @NonNull String property, @NonNull Double value);
 
-    public Boolean getPropertyBoolean(@NonNull String property) {
+    public synchronized Boolean getPropertyBoolean(@NonNull String property) {
+        if (disposed || nativeInstance == 0 || property == null) return null;
         return nativeGetPropertyBoolean(nativeInstance, property);
     }
 
     private native Boolean nativeGetPropertyBoolean(long instance, @NonNull String property);
 
-    public void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
+    public synchronized void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
+        if (disposed || nativeInstance == 0 || property == null || value == null) return;
         nativeSetPropertyBoolean(nativeInstance, property, value);
     }
 
     private native void nativeSetPropertyBoolean(long instance, @NonNull String property, @NonNull Boolean value);
 
-    public String getPropertyString(@NonNull String property) {
+    public synchronized String getPropertyString(@NonNull String property) {
+        if (disposed || nativeInstance == 0 || property == null) return null;
         return nativeGetPropertyString(nativeInstance, property);
     }
 
     private native String nativeGetPropertyString(long instance, @NonNull String property);
 
-    public void setPropertyString(@NonNull String property, @NonNull String value) {
+    public synchronized void setPropertyString(@NonNull String property, @NonNull String value) {
+        if (disposed || nativeInstance == 0 || property == null || value == null) return;
         nativeSetPropertyString(nativeInstance, property, value);
     }
 
     private native void nativeSetPropertyString(long instance, @NonNull String property, @NonNull String value);
 
-    public void observeProperty(@NonNull String property, @Format int format) {
+    public synchronized void observeProperty(@NonNull String property, @Format int format) {
+        if (disposed || nativeInstance == 0 || property == null) return;
         nativeObserveProperty(nativeInstance, property, format);
     }
 
     private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
 
     public void addObserver(EventObserver o) {
+        if (o == null) return;
         synchronized (observers) {
             observers.add(o);
         }
     }
 
     public void removeObserver(EventObserver o) {
+        if (o == null) return;
         synchronized (observers) {
             observers.remove(o);
         }
@@ -144,67 +169,55 @@ public class MPVLib {
 
     public void removeObservers() {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                observers.remove(o);
-            }
+            observers.clear();
         }
     }
 
     public void eventProperty(String property, long value) {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                o.eventProperty(property, value);
-            }
+            for (EventObserver o : observers) o.eventProperty(property, value);
         }
     }
 
     public void eventProperty(String property, double value) {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                o.eventProperty(property, value);
-            }
+            for (EventObserver o : observers) o.eventProperty(property, value);
         }
     }
 
     public void eventProperty(String property, boolean value) {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                o.eventProperty(property, value);
-            }
+            for (EventObserver o : observers) o.eventProperty(property, value);
         }
     }
 
     public void eventProperty(String property, String value) {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                o.eventProperty(property, value);
-            }
+            for (EventObserver o : observers) o.eventProperty(property, value);
         }
     }
 
-    public void eventProperty(String property) {
+    public void event(String property) {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                o.eventProperty(property);
-            }
+            for (EventObserver o : observers) o.eventProperty(property);
         }
     }
 
     public void event(@Event int eventId) {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                o.event(eventId);
-            }
+            for (EventObserver o : observers) o.event(eventId);
         }
     }
 
     public void addLogObserver(LogObserver o) {
+        if (o == null) return;
         synchronized (log_observers) {
             log_observers.add(o);
         }
     }
 
     public void removeLogObserver(LogObserver o) {
+        if (o == null) return;
         synchronized (log_observers) {
             log_observers.remove(o);
         }
@@ -212,17 +225,13 @@ public class MPVLib {
 
     public void removeLogObservers() {
         synchronized (log_observers) {
-            for (LogObserver o : log_observers) {
-                log_observers.remove(o);
-            }
+            log_observers.clear();
         }
     }
 
     public void logMessage(String prefix, @LogLevel int level, String text) {
         synchronized (log_observers) {
-            for (LogObserver o : log_observers) {
-                o.logMessage(prefix, level, text);
-            }
+            for (LogObserver o : log_observers) o.logMessage(prefix, level, text);
         }
     }
 
