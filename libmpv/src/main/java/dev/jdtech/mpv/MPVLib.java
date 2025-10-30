@@ -1,6 +1,5 @@
 package dev.jdtech.mpv;
 
-// Wrapper for native library
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
@@ -20,11 +19,33 @@ public class MPVLib {
     private final List<LogObserver> log_observers = new ArrayList<>();
     private static Boolean nativeLoadComplete = false;
 
+    private interface Supplier<T> {
+
+        T get();
+    }
+
+    private static <T> T safeCall(Supplier<T> action, T fallback) {
+        try {
+            return action.get();
+        } catch (Throwable t) {
+            return fallback;
+        }
+    }
+
+    private static void safeRun(Runnable action) {
+        try {
+            action.run();
+        } catch (Throwable t) {
+        }
+    }
+
     public static void loadNativeLibraries() {
         if (!nativeLoadComplete) {
-            System.loadLibrary("mpv");
-            System.loadLibrary("player");
-            nativeLoadComplete = true;
+            safeRun(() -> {
+                System.loadLibrary("mpv");
+                System.loadLibrary("player");
+                nativeLoadComplete = true;
+            });
         }
     }
 
@@ -34,98 +55,98 @@ public class MPVLib {
     }
 
     public void create(Context appctx) {
-        nativeInstance = nativeCreate(this, appctx);
+        nativeInstance = safeCall(() -> nativeCreate(this, appctx), 0L);
     }
 
     private native long nativeCreate(MPVLib thiz, Context appctx);
 
     public void init() {
-        nativeInit(nativeInstance);
+        safeRun(() -> nativeInit(nativeInstance));
     }
 
     private native void nativeInit(long instance);
 
     public void destroy() {
-        nativeDestroy(nativeInstance);
+        safeRun(() -> nativeDestroy(nativeInstance));
         nativeInstance = 0;
     }
 
     private native void nativeDestroy(long instance);
 
     public void attachSurface(Surface surface) {
-        nativeAttachSurface(nativeInstance, surface);
+        safeRun(() -> nativeAttachSurface(nativeInstance, surface));
     }
 
     private native void nativeAttachSurface(long instance, Surface surface);
 
     public void detachSurface() {
-        nativeDetachSurface(nativeInstance);
+        safeRun(() -> nativeDetachSurface(nativeInstance));
     }
 
     private native void nativeDetachSurface(long instance);
 
     public void command(@NonNull String[] cmd) {
-        nativeCommand(nativeInstance, cmd);
+        safeRun(() -> nativeCommand(nativeInstance, cmd));
     }
 
     private native void nativeCommand(long instance, @NonNull String[] cmd);
 
     public int setOptionString(@NonNull String name, @NonNull String value) {
-        return nativeSetOptionString(nativeInstance, name, value);
+        return safeCall(() -> nativeSetOptionString(nativeInstance, name, value), 0);
     }
 
     private native int nativeSetOptionString(long instance, @NonNull String name, @NonNull String value);
 
     public Integer getPropertyInt(@NonNull String property) {
-        return nativeGetPropertyInt(nativeInstance, property);
+        return safeCall(() -> nativeGetPropertyInt(nativeInstance, property), null);
     }
 
     private native int nativeGetPropertyInt(long instance, @NonNull String property);
 
     public void setPropertyInt(@NonNull String property, @NonNull Integer value) {
-        nativeSetPropertyInt(nativeInstance, property, value);
+        safeRun(() -> nativeSetPropertyInt(nativeInstance, property, value));
     }
 
     private native int nativeSetPropertyInt(long instance, @NonNull String property, @NonNull Integer value);
 
     public Double getPropertyDouble(@NonNull String property) {
-        return nativeGetPropertyDouble(nativeInstance, property);
+        return safeCall(() -> nativeGetPropertyDouble(nativeInstance, property), null);
     }
 
     private native Double nativeGetPropertyDouble(long instance, @NonNull String property);
 
     public void setPropertyDouble(@NonNull String property, @NonNull Double value) {
-        nativeSetPropertyDouble(nativeInstance, property, value);
+        safeRun(() -> nativeSetPropertyDouble(nativeInstance, property, value));
     }
 
     private native void nativeSetPropertyDouble(long instance, @NonNull String property, @NonNull Double value);
 
     public Boolean getPropertyBoolean(@NonNull String property) {
-        return nativeGetPropertyBoolean(nativeInstance, property);
+        return safeCall(() -> nativeGetPropertyBoolean(nativeInstance, property), null);
     }
 
     private native Boolean nativeGetPropertyBoolean(long instance, @NonNull String property);
 
     public void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
-        nativeSetPropertyBoolean(nativeInstance, property, value);
+        safeRun(() -> nativeSetPropertyBoolean(nativeInstance, property, value));
     }
 
     private native void nativeSetPropertyBoolean(long instance, @NonNull String property, @NonNull Boolean value);
 
     public String getPropertyString(@NonNull String property) {
-        return nativeGetPropertyString(nativeInstance, property);
+        return safeCall(() -> nativeGetPropertyString(nativeInstance, property), null);
     }
 
     private native String nativeGetPropertyString(long instance, @NonNull String property);
 
     public void setPropertyString(@NonNull String property, @NonNull String value) {
-        nativeSetPropertyString(nativeInstance, property, value);
+        safeRun(() -> nativeSetPropertyString(nativeInstance, property, value));
     }
 
     private native void nativeSetPropertyString(long instance, @NonNull String property, @NonNull String value);
 
     public void observeProperty(@NonNull String property, @Format int format) {
-        nativeObserveProperty(nativeInstance, property, format);
+        safeRun(() -> nativeObserveProperty(nativeInstance, property, format));
     }
 
     private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
@@ -144,16 +165,14 @@ public class MPVLib {
 
     public void removeObservers() {
         synchronized (observers) {
-            for (EventObserver o : observers) {
-                observers.remove(o);
-            }
+            observers.clear();
         }
     }
 
     public void eventProperty(String property, long value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
-                o.eventProperty(property, value);
+                safeRun(() -> o.eventProperty(property, value));
             }
         }
     }
@@ -161,7 +180,7 @@ public class MPVLib {
     public void eventProperty(String property, double value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
-                o.eventProperty(property, value);
+                safeRun(() -> o.eventProperty(property, value));
             }
         }
     }
@@ -169,7 +188,7 @@ public class MPVLib {
     public void eventProperty(String property, boolean value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
-                o.eventProperty(property, value);
+                safeRun(() -> o.eventProperty(property, value));
             }
         }
     }
@@ -177,7 +196,7 @@ public class MPVLib {
     public void eventProperty(String property, String value) {
         synchronized (observers) {
             for (EventObserver o : observers) {
-                o.eventProperty(property, value);
+                safeRun(() -> o.eventProperty(property, value));
             }
         }
     }
@@ -185,7 +204,7 @@ public class MPVLib {
     public void eventProperty(String property) {
         synchronized (observers) {
             for (EventObserver o : observers) {
-                o.eventProperty(property);
+                safeRun(() -> o.eventProperty(property));
             }
         }
     }
@@ -193,7 +212,7 @@ public class MPVLib {
     public void event(@Event int eventId) {
         synchronized (observers) {
             for (EventObserver o : observers) {
-                o.event(eventId);
+                safeRun(() -> o.event(eventId));
             }
         }
     }
@@ -212,16 +231,14 @@ public class MPVLib {
 
     public void removeLogObservers() {
         synchronized (log_observers) {
-            for (LogObserver o : log_observers) {
-                log_observers.remove(o);
-            }
+            log_observers.clear();
         }
     }
 
     public void logMessage(String prefix, @LogLevel int level, String text) {
         synchronized (log_observers) {
             for (LogObserver o : log_observers) {
-                o.logMessage(prefix, level, text);
+                safeRun(() -> o.logMessage(prefix, level, text));
             }
         }
     }
