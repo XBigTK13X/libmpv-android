@@ -17,35 +17,13 @@ public class MPVLib {
     private long nativeInstance;
     private final List<EventObserver> observers = new ArrayList<>();
     private final List<LogObserver> log_observers = new ArrayList<>();
-    private static Boolean nativeLoadComplete = false;
-
-    private interface Supplier<T> {
-
-        T get();
-    }
-
-    private static <T> T safeCall(Supplier<T> action, T fallback) {
-        try {
-            return action.get();
-        } catch (Throwable t) {
-            return fallback;
-        }
-    }
-
-    private static void safeRun(Runnable action) {
-        try {
-            action.run();
-        } catch (Throwable t) {
-        }
-    }
+    private static volatile Boolean nativeLoadComplete = false;
 
     public static void loadNativeLibraries() {
         if (!nativeLoadComplete) {
-            safeRun(() -> {
-                System.loadLibrary("mpv");
-                System.loadLibrary("player");
-                nativeLoadComplete = true;
-            });
+            System.loadLibrary("mpv");
+            System.loadLibrary("player");
+            nativeLoadComplete = true;
         }
     }
 
@@ -55,191 +33,284 @@ public class MPVLib {
     }
 
     public void create(Context appctx) {
-        nativeInstance = safeCall(() -> nativeCreate(this, appctx), 0L);
+        try {
+            nativeInstance = nativeCreate(this, appctx);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native long nativeCreate(MPVLib thiz, Context appctx);
 
     public void init() {
-        safeRun(() -> nativeInit(nativeInstance));
+        try {
+            nativeInit(nativeInstance);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeInit(long instance);
 
     public void destroy() {
-        safeRun(() -> nativeDestroy(nativeInstance));
-        nativeInstance = 0;
+        try {
+            nativeDestroy(nativeInstance);
+            nativeInstance = 0;
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeDestroy(long instance);
 
     public void attachSurface(Surface surface) {
-        safeRun(() -> nativeAttachSurface(nativeInstance, surface));
+        try {
+            nativeAttachSurface(nativeInstance, surface);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeAttachSurface(long instance, Surface surface);
 
     public void detachSurface() {
-        safeRun(() -> nativeDetachSurface(nativeInstance));
+        try {
+            nativeDetachSurface(nativeInstance);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeDetachSurface(long instance);
 
     public void command(@NonNull String[] cmd) {
-        safeRun(() -> nativeCommand(nativeInstance, cmd));
+        try {
+            nativeCommand(nativeInstance, cmd);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeCommand(long instance, @NonNull String[] cmd);
 
     public int setOptionString(@NonNull String name, @NonNull String value) {
-        return safeCall(() -> nativeSetOptionString(nativeInstance, name, value), 0);
+        try {
+            return nativeSetOptionString(nativeInstance, name, value);
+        } catch (Throwable swallow) {
+            return -1;
+        }
     }
 
     private native int nativeSetOptionString(long instance, @NonNull String name, @NonNull String value);
 
     public Integer getPropertyInt(@NonNull String property) {
-        return safeCall(() -> nativeGetPropertyInt(nativeInstance, property), null);
+        try {
+            return nativeGetPropertyInt(nativeInstance, property);
+        } catch (Throwable swallow) {
+            return null;
+        }
+
     }
 
-    private native int nativeGetPropertyInt(long instance, @NonNull String property);
+    private native Integer nativeGetPropertyInt(long instance, @NonNull String property);
 
     public void setPropertyInt(@NonNull String property, @NonNull Integer value) {
-        safeRun(() -> nativeSetPropertyInt(nativeInstance, property, value));
+        try {
+            nativeSetPropertyInt(nativeInstance, property, value);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native int nativeSetPropertyInt(long instance, @NonNull String property, @NonNull Integer value);
 
     public Double getPropertyDouble(@NonNull String property) {
-        return safeCall(() -> nativeGetPropertyDouble(nativeInstance, property), null);
+        try {
+            return nativeGetPropertyDouble(nativeInstance, property);
+        } catch (Throwable swallow) {
+            return null;
+        }
     }
 
     private native Double nativeGetPropertyDouble(long instance, @NonNull String property);
 
     public void setPropertyDouble(@NonNull String property, @NonNull Double value) {
-        safeRun(() -> nativeSetPropertyDouble(nativeInstance, property, value));
+        try {
+            nativeSetPropertyDouble(nativeInstance, property, value);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeSetPropertyDouble(long instance, @NonNull String property, @NonNull Double value);
 
     public Boolean getPropertyBoolean(@NonNull String property) {
-        return safeCall(() -> nativeGetPropertyBoolean(nativeInstance, property), null);
+        try {
+            return nativeGetPropertyBoolean(nativeInstance, property);
+        } catch (Throwable swallow) {
+            return null;
+        }
     }
 
     private native Boolean nativeGetPropertyBoolean(long instance, @NonNull String property);
 
     public void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
-        safeRun(() -> nativeSetPropertyBoolean(nativeInstance, property, value));
+        try {
+            nativeSetPropertyBoolean(nativeInstance, property, value);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeSetPropertyBoolean(long instance, @NonNull String property, @NonNull Boolean value);
 
     public String getPropertyString(@NonNull String property) {
-        return safeCall(() -> nativeGetPropertyString(nativeInstance, property), null);
+        try {
+            return nativeGetPropertyString(nativeInstance, property);
+        } catch (Throwable swallow) {
+            return null;
+        }
     }
 
     private native String nativeGetPropertyString(long instance, @NonNull String property);
 
     public void setPropertyString(@NonNull String property, @NonNull String value) {
-        safeRun(() -> nativeSetPropertyString(nativeInstance, property, value));
+        try {
+            nativeSetPropertyString(nativeInstance, property, value);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeSetPropertyString(long instance, @NonNull String property, @NonNull String value);
 
     public void observeProperty(@NonNull String property, @Format int format) {
-        safeRun(() -> nativeObserveProperty(nativeInstance, property, format));
+        try {
+            nativeObserveProperty(nativeInstance, property, format);
+        } catch (Throwable swallow) {
+        }
     }
 
     private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
 
     public void addObserver(EventObserver o) {
-        synchronized (observers) {
-            observers.add(o);
+        try {
+            synchronized (observers) {
+                observers.add(o);
+            }
+        } catch (Throwable swallow) {
         }
     }
 
     public void removeObserver(EventObserver o) {
-        synchronized (observers) {
-            observers.remove(o);
+        try {
+            synchronized (observers) {
+                observers.remove(o);
+            }
+        } catch (Throwable swallow) {
         }
     }
 
     public void removeObservers() {
-        synchronized (observers) {
-            observers.clear();
+        try {
+            synchronized (observers) {
+                observers.clear();
+            }
+        } catch (Throwable swallow) {
         }
     }
 
     public void eventProperty(String property, long value) {
-        synchronized (observers) {
-            for (EventObserver o : observers) {
-                safeRun(() -> o.eventProperty(property, value));
+        try {
+            synchronized (observers) {
+                for (EventObserver o : observers) {
+                    o.eventProperty(property, value);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
     public void eventProperty(String property, double value) {
-        synchronized (observers) {
-            for (EventObserver o : observers) {
-                safeRun(() -> o.eventProperty(property, value));
+        try {
+            synchronized (observers) {
+                for (EventObserver o : observers) {
+                    o.eventProperty(property, value);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
     public void eventProperty(String property, boolean value) {
-        synchronized (observers) {
-            for (EventObserver o : observers) {
-                safeRun(() -> o.eventProperty(property, value));
+        try {
+            synchronized (observers) {
+                for (EventObserver o : observers) {
+                    o.eventProperty(property, value);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
     public void eventProperty(String property, String value) {
-        synchronized (observers) {
-            for (EventObserver o : observers) {
-                safeRun(() -> o.eventProperty(property, value));
+        try {
+            synchronized (observers) {
+                for (EventObserver o : observers) {
+                    o.eventProperty(property, value);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
     public void eventProperty(String property) {
-        synchronized (observers) {
-            for (EventObserver o : observers) {
-                safeRun(() -> o.eventProperty(property));
+        try {
+            synchronized (observers) {
+                for (EventObserver o : observers) {
+                    o.eventProperty(property);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
     public void event(@Event int eventId) {
-        synchronized (observers) {
-            for (EventObserver o : observers) {
-                safeRun(() -> o.event(eventId));
+        try {
+            synchronized (observers) {
+                for (EventObserver o : observers) {
+                    o.event(eventId);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
     public void addLogObserver(LogObserver o) {
-        synchronized (log_observers) {
-            log_observers.add(o);
+        try {
+            synchronized (log_observers) {
+                log_observers.add(o);
+            }
+        } catch (Throwable swallow) {
         }
     }
 
     public void removeLogObserver(LogObserver o) {
-        synchronized (log_observers) {
-            log_observers.remove(o);
+        try {
+            synchronized (log_observers) {
+                log_observers.remove(o);
+            }
+        } catch (Throwable swallow) {
         }
     }
 
     public void removeLogObservers() {
-        synchronized (log_observers) {
-            log_observers.clear();
+        try {
+            synchronized (log_observers) {
+                log_observers.clear();
+            }
+        } catch (Throwable swallow) {
         }
     }
 
     public void logMessage(String prefix, @LogLevel int level, String text) {
-        synchronized (log_observers) {
-            for (LogObserver o : log_observers) {
-                safeRun(() -> o.logMessage(prefix, level, text));
+        try {
+            synchronized (log_observers) {
+                for (LogObserver o : log_observers) {
+                    o.logMessage(prefix, level, text);
+                }
             }
+        } catch (Throwable swallow) {
         }
     }
 
