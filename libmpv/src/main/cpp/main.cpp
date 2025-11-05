@@ -4,6 +4,7 @@
 #include <ctime>
 #include <clocale>
 #include <atomic>
+#include <thread>
 
 #include <mpv/client.h>
 
@@ -74,19 +75,27 @@ jni_func(void, nativeInit, jlong instance) {
 
 jni_func(void, nativeDestroy, jlong instance) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance->mpv){
-        throwJavaException(env,"nativeDestroy -> mpv destroy called but it's already destroyed");
+    if (!mpv_instance || !mpv_instance->mpv) {
+        ALOGE("nativeDestroy -> mpv destroy called but it's already destroyed");
         return;
     }
 
-    mpv_instance->event_thread_request_exit = true;
-    mpv_wakeup(mpv_instance->mpv);
-    pthread_join(mpv_instance->event_thread_id, nullptr);
+    mpv_handle* mpv = mpv_instance->mpv;
+    pthread_t event_thread_id = mpv_instance->event_thread_id;
+    jobject javaObject = mpv_instance->javaObject;
 
-    mpv_terminate_destroy(mpv_instance->mpv);
-    env->DeleteGlobalRef(mpv_instance->javaObject);
-    delete mpv_instance;
+    mpv_instance->event_thread_request_exit = true;
+    mpv_wakeup(mpv);
+
+    env->DeleteGlobalRef(javaObject);
+
+    std::thread([mpv, event_thread_id, mpv_instance]() {
+        pthread_join(event_thread_id, nullptr);
+        mpv_terminate_destroy(mpv);
+        delete mpv_instance;
+    }).detach();
 }
+
 
 jni_func(void, nativeCommand, jlong instance, jobjectArray jarray) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);

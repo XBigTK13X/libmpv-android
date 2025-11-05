@@ -4,6 +4,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import android.content.Context;
 import android.view.Surface;
@@ -17,12 +19,14 @@ public class MPVLib {
     private static volatile Boolean nativeLoadComplete = false;
     private final List<EventObserver> observers = new ArrayList<>();
     private final List<LogObserver> log_observers = new ArrayList<>();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
     private boolean swallowExceptions;
 
     private long nativeInstance;
     private boolean created;
     private boolean inited;
+    private boolean destroyRequested;
     private boolean destroyed;
 
     public static void loadNativeLibraries() {
@@ -37,6 +41,10 @@ public class MPVLib {
         swallowExceptions = swallow;
         loadNativeLibraries();
         nativeInstance = 0;
+    }
+
+    private boolean isDangerous() {
+        return !created || destroyed || destroyRequested || nativeInstance == 0;
     }
 
     public void create(Context appctx) {
@@ -57,7 +65,7 @@ public class MPVLib {
     private native long nativeCreate(MPVLib thiz, Context appctx);
 
     public void init() {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -71,13 +79,30 @@ public class MPVLib {
 
     private native void nativeInit(long instance);
 
-    public void destroy() {
-        if (!created || destroyed) {
+    public void destroyAsync() {
+        if (isDangerous()) {
             return;
         }
+        destroyRequested = true;
+        executor.submit(() -> {
+            try {
+                nativeDestroy(nativeInstance);
+                destroyed = true;
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw new RuntimeException(e);
+                }
+            }
+        });
+    }
+
+    public void destroy() {
+        if (isDangerous()) {
+            return;
+        }
+        destroyRequested = true;
         try {
             nativeDestroy(nativeInstance);
-            nativeInstance = 0;
             destroyed = true;
         } catch (Exception e) {
             if (!swallowExceptions) {
@@ -89,7 +114,7 @@ public class MPVLib {
     private native void nativeDestroy(long instance);
 
     public void attachSurface(Surface surface) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -103,23 +128,25 @@ public class MPVLib {
 
     private native void nativeAttachSurface(long instance, Surface surface);
 
-    public void detachSurface() {
-        if (!created || destroyed) {
+    public void detachSurfaceAsync() {
+        if (isDangerous()) {
             return;
         }
-        try {
-            nativeDetachSurface(nativeInstance);
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
+        executor.submit(() -> {
+            try {
+                nativeDetachSurface(nativeInstance);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw new RuntimeException(e);
+                }
             }
-        }
+        });
     }
 
     private native void nativeDetachSurface(long instance);
 
     public void command(@NonNull String[] cmd) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -134,7 +161,7 @@ public class MPVLib {
     private native void nativeCommand(long instance, @NonNull String[] cmd);
 
     public int setOptionString(@NonNull String name, @NonNull String value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return -1;
         }
         try {
@@ -150,7 +177,7 @@ public class MPVLib {
     private native int nativeSetOptionString(long instance, @NonNull String name, @NonNull String value);
 
     public Integer getPropertyInt(@NonNull String property) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return null;
         }
         try {
@@ -166,7 +193,7 @@ public class MPVLib {
     private native Integer nativeGetPropertyInt(long instance, @NonNull String property);
 
     public void setPropertyInt(@NonNull String property, @NonNull Integer value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -181,7 +208,7 @@ public class MPVLib {
     private native int nativeSetPropertyInt(long instance, @NonNull String property, @NonNull Integer value);
 
     public Double getPropertyDouble(@NonNull String property) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return null;
         }
         try {
@@ -197,7 +224,7 @@ public class MPVLib {
     private native Double nativeGetPropertyDouble(long instance, @NonNull String property);
 
     public void setPropertyDouble(@NonNull String property, @NonNull Double value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -212,7 +239,7 @@ public class MPVLib {
     private native void nativeSetPropertyDouble(long instance, @NonNull String property, @NonNull Double value);
 
     public Boolean getPropertyBoolean(@NonNull String property) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return null;
         }
         try {
@@ -228,7 +255,7 @@ public class MPVLib {
     private native Boolean nativeGetPropertyBoolean(long instance, @NonNull String property);
 
     public void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -243,7 +270,7 @@ public class MPVLib {
     private native void nativeSetPropertyBoolean(long instance, @NonNull String property, @NonNull Boolean value);
 
     public String getPropertyString(@NonNull String property) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return null;
         }
         try {
@@ -259,7 +286,7 @@ public class MPVLib {
     private native String nativeGetPropertyString(long instance, @NonNull String property);
 
     public void setPropertyString(@NonNull String property, @NonNull String value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -274,7 +301,7 @@ public class MPVLib {
     private native void nativeSetPropertyString(long instance, @NonNull String property, @NonNull String value);
 
     public void observeProperty(@NonNull String property, @Format int format) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -289,7 +316,7 @@ public class MPVLib {
     private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
 
     public void addObserver(EventObserver o) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -304,7 +331,7 @@ public class MPVLib {
     }
 
     public void removeObserver(EventObserver o) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -319,7 +346,7 @@ public class MPVLib {
     }
 
     public void removeObservers() {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -334,7 +361,7 @@ public class MPVLib {
     }
 
     public void eventProperty(String property, long value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -351,7 +378,7 @@ public class MPVLib {
     }
 
     public void eventProperty(String property, double value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -368,7 +395,7 @@ public class MPVLib {
     }
 
     public void eventProperty(String property, boolean value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -385,7 +412,7 @@ public class MPVLib {
     }
 
     public void eventProperty(String property, String value) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -402,7 +429,7 @@ public class MPVLib {
     }
 
     public void eventProperty(String property) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -419,7 +446,7 @@ public class MPVLib {
     }
 
     public void event(@Event int eventId) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -436,7 +463,7 @@ public class MPVLib {
     }
 
     public void addLogObserver(LogObserver o) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -451,7 +478,7 @@ public class MPVLib {
     }
 
     public void removeLogObserver(LogObserver o) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -466,7 +493,7 @@ public class MPVLib {
     }
 
     public void removeLogObservers() {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
@@ -481,7 +508,7 @@ public class MPVLib {
     }
 
     public void logMessage(String prefix, @LogLevel int level, String text) {
-        if (!created || destroyed) {
+        if (isDangerous()) {
             return;
         }
         try {
