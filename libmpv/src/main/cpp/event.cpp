@@ -28,7 +28,7 @@ static void sendPropertyUpdateToJava(JNIEnv *env, MPVInstance* instance, mpv_eve
         env->CallVoidMethod(instance->javaObject, mpv_MPVLib_eventProperty_SS, jprop, jvalue);
         break;
     default:
-        ALOGV("sendPropertyUpdateToJava: Unknown property update format received in callback: %d!", prop->format);
+        ALOGE("sendPropertyUpdateToJava -> Unknown property update format received in callback: %d!", prop->format);
         break;
     }
     if (jprop)
@@ -69,8 +69,10 @@ void *event_thread(void *arg) {
     auto instance = static_cast<MPVInstance*>(arg);
     JNIEnv *env = nullptr;
     acquire_jni_env(instance->vm, &env);
-    if (!env)
-        die("failed to acquire java env");
+    if (!env){
+        ALOGE("event_thread -> failed to acquire java env");
+        return nullptr;
+    }
 
     while (true) {
         mpv_event *mp_event;
@@ -88,7 +90,6 @@ void *event_thread(void *arg) {
         switch (mp_event->event_id) {
         case MPV_EVENT_LOG_MESSAGE:
             msg = (mpv_event_log_message*)mp_event->data;
-            ALOGV("[%s:%s] %s", msg->prefix, msg->level, msg->text);
             sendLogMessageToJava(env, instance, msg);
             break;
         case MPV_EVENT_PROPERTY_CHANGE:
@@ -96,7 +97,6 @@ void *event_thread(void *arg) {
             sendPropertyUpdateToJava(env, instance, mp_property);
             break;
         default:
-            ALOGV("event: %s\n", mpv_event_name(mp_event->event_id));
             sendEventToJava(env, instance, mp_event->event_id);
             break;
         }

@@ -20,8 +20,8 @@ extern "C" {
 
 #define ARRAYLEN(a) (sizeof(a)/sizeof(a[0]))
 
-// Update the JNI functions to accept a jlong parameter, which will be a
-// pointer to the MPVInstance
+// The JNI functions accept a jlong parameter,
+// which will be a pointer to an MPVInstance
 extern "C" {
     jni_func(jlong, nativeCreate, jobject thiz, jobject appctx);
     jni_func(void, nativeInit, jlong instance);
@@ -48,7 +48,8 @@ jni_func(jlong, nativeCreate, jobject thiz, jobject appctx) {
     instance->mpv = mpv_create();
     if (!instance->mpv) {
         delete instance;
-        die("context init failed");
+        throwJavaException(env,"nativeCreate -> context init failed");
+        return -1;
     }
 
     mpv_request_log_messages(instance->mpv, "v");
@@ -57,11 +58,15 @@ jni_func(jlong, nativeCreate, jobject thiz, jobject appctx) {
 
 jni_func(void, nativeInit, jlong instance) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance->mpv)
-        die("mpv is not created");
+    if (!mpv_instance->mpv) {
+        throwJavaException(env,"nativeInit -> mpv is not created");
+        return;
+    }
 
-    if (mpv_initialize(mpv_instance->mpv) < 0)
-        die("mpv init failed");
+    if (mpv_initialize(mpv_instance->mpv) < 0){
+        throwJavaException(env,"nativeInit -> mpv init failed");
+        return;
+    }
 
     mpv_instance->event_thread_request_exit = false;
     pthread_create(&mpv_instance->event_thread_id, nullptr, event_thread, mpv_instance);
@@ -69,8 +74,10 @@ jni_func(void, nativeInit, jlong instance) {
 
 jni_func(void, nativeDestroy, jlong instance) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance->mpv)
-        die("mpv destroy called but it's already destroyed");
+    if (!mpv_instance->mpv){
+        throwJavaException(env,"nativeDestroy -> mpv destroy called but it's already destroyed");
+        return;
+    }
 
     mpv_instance->event_thread_request_exit = true;
     mpv_wakeup(mpv_instance->mpv);
@@ -85,10 +92,14 @@ jni_func(void, nativeCommand, jlong instance, jobjectArray jarray) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(instance);
     const char *arguments[128] = { 0 };
     int len = env->GetArrayLength(jarray);
-    if (!mpv_instance->mpv)
-        die("Cannot run command: mpv is not initialized");
-    if (len >= ARRAYLEN(arguments))
-        die("Cannot run command: too many arguments");
+    if (!mpv_instance->mpv){
+        throwJavaException(env,"nativeCommand -> mpv is not initialized");
+        return;
+    }
+    if (len >= ARRAYLEN(arguments)){
+        throwJavaException(env,"nativeCommand -> too many arguments");
+        return;
+    }
 
     for (int i = 0; i < len; ++i)
         arguments[i] = env->GetStringUTFChars((jstring)env->GetObjectArrayElement(jarray, i), nullptr);

@@ -22,8 +22,10 @@ extern "C" {
 
 jni_func(jint, nativeSetOptionString, jlong jinstance, jstring joption, jstring jvalue) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(jinstance);
-    if (!mpv_instance->mpv)
-        die("mpv is not initialized");
+    if (!mpv_instance->mpv){
+        throwJavaException(env,"nativeSetOptionString -> mpv is not initialized");
+        return -1;
+    }
 
     const char *option = env->GetStringUTFChars(joption, nullptr);
     const char *value = env->GetStringUTFChars(jvalue, nullptr);
@@ -37,8 +39,10 @@ jni_func(jint, nativeSetOptionString, jlong jinstance, jstring joption, jstring 
 }
 
 static int common_get_property(JNIEnv *env, mpv_handle* mpv, jstring jproperty, mpv_format jformat, void *output) {
-    if (!mpv)
-        die("get_property called but mpv is not initialized");
+    if (!mpv){
+        throwJavaException(env,"common_get_property -> mpv is not initialized");
+        return -1;
+    }
 
     const char *prop = env->GetStringUTFChars(jproperty, nullptr);
     int result = mpv_get_property(mpv, prop, jformat, output);
@@ -50,8 +54,10 @@ static int common_get_property(JNIEnv *env, mpv_handle* mpv, jstring jproperty, 
 }
 
 static int common_set_property(JNIEnv *env, mpv_handle* mpv, jstring jproperty, mpv_format jformat, void *jvalue) {
-    if (!mpv)
-        die("set_property called but mpv is not initialized");
+    if (!mpv){
+        throwJavaException(env,"common_set_property -> mpv is not initialized");
+        return -1;
+    }
 
     const char *prop = env->GetStringUTFChars(jproperty, nullptr);
     int result = mpv_set_property(mpv, prop, jformat, jvalue);
@@ -123,8 +129,10 @@ jni_func(void, nativeSetPropertyString, jlong jinstance, jstring jproperty, jstr
 
 jni_func(void, nativeObserveProperty, jlong jinstance, jstring jproperty, jint jformat) {
     auto mpv_instance = reinterpret_cast<MPVInstance*>(jinstance);
-    if (!mpv_instance->mpv)
-        die("mpv is not initialized");
+    if (!mpv_instance->mpv){
+        throwJavaException(env,"nativeObserveProperty -> mpv is not initialized");
+        return;
+    }
     const char *prop = env->GetStringUTFChars(jproperty, nullptr);
     mpv_observe_property(mpv_instance->mpv, 0, prop, (mpv_format)jformat);
     env->ReleaseStringUTFChars(jproperty, prop);

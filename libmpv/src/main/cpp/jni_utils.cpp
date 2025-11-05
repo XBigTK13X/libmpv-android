@@ -3,6 +3,8 @@
 #include <jni.h>
 #include <cstdlib>
 
+#include "log.h"
+
 bool acquire_jni_env(JavaVM *vm, JNIEnv **env)
 {
     int ret = vm->GetEnv((void**) env, JNI_VERSION_1_6);
@@ -12,8 +14,15 @@ bool acquire_jni_env(JavaVM *vm, JNIEnv **env)
         return ret == JNI_OK;
 }
 
-// Apparently it's considered slow to FindClass and GetMethodID every time we need them,
-// so let's have a nice cache here
+void throwJavaException(JNIEnv* env, const char* msg) {
+    if (!env || !msg) return;
+    ALOGE("%s", msg);
+    jclass cls = env->FindClass("java/lang/RuntimeException");
+    if (cls) env->ThrowNew(cls, msg);
+}
+
+// It is slow to FindClass and GetMethodID every time we need them,
+// Cache them instead
 jclass java_Integer, java_Double, java_Boolean;
 jmethodID java_Integer_init, java_Integer_intValue, java_Double_init, java_Double_doubleValue, java_Boolean_init, java_Boolean_booleanValue;
 jmethodID java_GLSurfaceView_requestRender;

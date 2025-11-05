@@ -5,7 +5,7 @@ project("libmpv")
 add_library(
         player
         SHARED
-        main.cpp render.cpp log.cpp jni_utils.cpp property.cpp event.cpp
+        main.cpp render.cpp jni_utils.cpp property.cpp event.cpp
 )
 
 add_library(

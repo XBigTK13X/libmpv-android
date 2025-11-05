@@ -14,10 +14,16 @@ import androidx.annotation.NonNull;
 @SuppressWarnings("unused")
 public class MPVLib {
 
-    private long nativeInstance;
+    private static volatile Boolean nativeLoadComplete = false;
     private final List<EventObserver> observers = new ArrayList<>();
     private final List<LogObserver> log_observers = new ArrayList<>();
-    private static volatile Boolean nativeLoadComplete = false;
+
+    private boolean swallowExceptions;
+
+    private long nativeInstance;
+    private boolean created;
+    private boolean inited;
+    private boolean destroyed;
 
     public static void loadNativeLibraries() {
         if (!nativeLoadComplete) {
@@ -27,70 +33,116 @@ public class MPVLib {
         }
     }
 
-    public MPVLib() {
+    public MPVLib(boolean swallow) {
+        swallowExceptions = swallow;
         loadNativeLibraries();
         nativeInstance = 0;
     }
 
     public void create(Context appctx) {
+        if (created) {
+            return;
+        }
         try {
             nativeInstance = nativeCreate(this, appctx);
-        } catch (Throwable swallow) {
+            created = true;
+
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native long nativeCreate(MPVLib thiz, Context appctx);
 
     public void init() {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeInit(nativeInstance);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeInit(long instance);
 
     public void destroy() {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeDestroy(nativeInstance);
             nativeInstance = 0;
-        } catch (Throwable swallow) {
+            destroyed = true;
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeDestroy(long instance);
 
     public void attachSurface(Surface surface) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeAttachSurface(nativeInstance, surface);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeAttachSurface(long instance, Surface surface);
 
     public void detachSurface() {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeDetachSurface(nativeInstance);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeDetachSurface(long instance);
 
     public void command(@NonNull String[] cmd) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeCommand(nativeInstance, cmd);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeCommand(long instance, @NonNull String[] cmd);
 
     public int setOptionString(@NonNull String name, @NonNull String value) {
+        if (!created || destroyed) {
+            return -1;
+        }
         try {
             return nativeSetOptionString(nativeInstance, name, value);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
             return -1;
         }
     }
@@ -98,29 +150,46 @@ public class MPVLib {
     private native int nativeSetOptionString(long instance, @NonNull String name, @NonNull String value);
 
     public Integer getPropertyInt(@NonNull String property) {
-        try {
-            return nativeGetPropertyInt(nativeInstance, property);
-        } catch (Throwable swallow) {
+        if (!created || destroyed) {
             return null;
         }
-
+        try {
+            return nativeGetPropertyInt(nativeInstance, property);
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
+            return null;
+        }
     }
 
     private native Integer nativeGetPropertyInt(long instance, @NonNull String property);
 
     public void setPropertyInt(@NonNull String property, @NonNull Integer value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeSetPropertyInt(nativeInstance, property, value);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native int nativeSetPropertyInt(long instance, @NonNull String property, @NonNull Integer value);
 
     public Double getPropertyDouble(@NonNull String property) {
+        if (!created || destroyed) {
+            return null;
+        }
         try {
             return nativeGetPropertyDouble(nativeInstance, property);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
             return null;
         }
     }
@@ -128,18 +197,30 @@ public class MPVLib {
     private native Double nativeGetPropertyDouble(long instance, @NonNull String property);
 
     public void setPropertyDouble(@NonNull String property, @NonNull Double value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeSetPropertyDouble(nativeInstance, property, value);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeSetPropertyDouble(long instance, @NonNull String property, @NonNull Double value);
 
     public Boolean getPropertyBoolean(@NonNull String property) {
+        if (!created || destroyed) {
+            return null;
+        }
         try {
             return nativeGetPropertyBoolean(nativeInstance, property);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
             return null;
         }
     }
@@ -147,18 +228,30 @@ public class MPVLib {
     private native Boolean nativeGetPropertyBoolean(long instance, @NonNull String property);
 
     public void setPropertyBoolean(@NonNull String property, @NonNull Boolean value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeSetPropertyBoolean(nativeInstance, property, value);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeSetPropertyBoolean(long instance, @NonNull String property, @NonNull Boolean value);
 
     public String getPropertyString(@NonNull String property) {
+        if (!created || destroyed) {
+            return null;
+        }
         try {
             return nativeGetPropertyString(nativeInstance, property);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
             return null;
         }
     }
@@ -166,151 +259,241 @@ public class MPVLib {
     private native String nativeGetPropertyString(long instance, @NonNull String property);
 
     public void setPropertyString(@NonNull String property, @NonNull String value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeSetPropertyString(nativeInstance, property, value);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeSetPropertyString(long instance, @NonNull String property, @NonNull String value);
 
     public void observeProperty(@NonNull String property, @Format int format) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             nativeObserveProperty(nativeInstance, property, format);
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
 
     public void addObserver(EventObserver o) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 observers.add(o);
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void removeObserver(EventObserver o) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 observers.remove(o);
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void removeObservers() {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 observers.clear();
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void eventProperty(String property, long value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 for (EventObserver o : observers) {
                     o.eventProperty(property, value);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void eventProperty(String property, double value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 for (EventObserver o : observers) {
                     o.eventProperty(property, value);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void eventProperty(String property, boolean value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 for (EventObserver o : observers) {
                     o.eventProperty(property, value);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void eventProperty(String property, String value) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 for (EventObserver o : observers) {
                     o.eventProperty(property, value);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void eventProperty(String property) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 for (EventObserver o : observers) {
                     o.eventProperty(property);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void event(@Event int eventId) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (observers) {
                 for (EventObserver o : observers) {
                     o.event(eventId);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void addLogObserver(LogObserver o) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (log_observers) {
                 log_observers.add(o);
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void removeLogObserver(LogObserver o) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (log_observers) {
                 log_observers.remove(o);
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void removeLogObservers() {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (log_observers) {
                 log_observers.clear();
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 
     public void logMessage(String prefix, @LogLevel int level, String text) {
+        if (!created || destroyed) {
+            return;
+        }
         try {
             synchronized (log_observers) {
                 for (LogObserver o : log_observers) {
                     o.logMessage(prefix, level, text);
                 }
             }
-        } catch (Throwable swallow) {
+        } catch (Exception e) {
+            if (!swallowExceptions) {
+                throw e;
+            }
         }
     }
 

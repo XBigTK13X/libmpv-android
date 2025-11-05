@@ -12,4 +12,4 @@ RUN bash download.sh
 
 RUN bash patch.sh
 
-RUN bash build.sh mpv-android
+CMD ["bash"]
