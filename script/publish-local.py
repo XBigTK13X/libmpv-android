@@ -21,18 +21,18 @@ pom = f'''<?xml version="1.0" encoding="UTF-8"?>
 </project>
 '''
 
-built_arr_path = f'./aar-output/android-libmpv-{VERSION}.aar'
-shutil.copy('./aar-output/libmpv.aar',built_arr_path)
+built_arr_path = f'./libmpv/build/outputs/aar/android-libmpv-{VERSION}.aar'
+shutil.copy('./libmpv/build/outputs/aar/libmpv-release.aar', built_arr_path)
 
-built_pom_path = f'./aar-output/android-libmpv-{VERSION}.pom'
+built_pom_path = f'./libmpv/build/outputs/aar/android-libmpv-{VERSION}.pom'
 with open(built_pom_path,'w',encoding="utf-8") as write_handle:
     write_handle.write(pom)
 
 repo_dir = f'/home/kretst/maven-repo/com/libmpv/android-libmpv/{VERSION}'
 os.makedirs(repo_dir,exist_ok=True)
 
-repo_arr_path = os.path.join(repo_dir,f'android-libmpv-{VERSION}.aar')
-repo_pom_path = os.path.join(repo_dir,f'android-libmpv-{VERSION}.pom')
+repo_arr_path = os.path.join(repo_dir, f'android-libmpv-{VERSION}.aar')
+repo_pom_path = os.path.join(repo_dir, f'android-libmpv-{VERSION}.pom')
 
 shutil.copy(built_arr_path, repo_arr_path)
 shutil.copy(built_pom_path, repo_pom_path)
