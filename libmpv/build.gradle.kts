@@ -2,14 +2,15 @@ import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
 
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.maven.publish)
 }
 
 android {
     namespace = "dev.jdtech.mpv"
     compileSdk = 36
-    buildToolsVersion = "36.0.0"
-    ndkVersion = "28.2.13676358"
+    buildToolsVersion = "36.1.0"
+    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         minSdk = 26
@@ -28,13 +29,14 @@ android {
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
-            version = "4.1.0"
+            version = "4.1.2"
         }
     }
-}
 
-dependencies {
-    implementation(libs.androidx.annotation)
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
 
 mavenPublishing {
