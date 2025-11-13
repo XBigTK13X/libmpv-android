@@ -46,6 +46,7 @@ jni_func(jlong, nativeCreate, jobject thiz, jobject appctx) {
     instance->event_thread_id = pthread_t{};
     instance->mpv = nullptr;
     instance->javaObject = nullptr;
+    instance->surface = nullptr;
 
     jobject global = env->NewGlobalRef(thiz);
     if (!global) {
@@ -93,24 +94,19 @@ jni_func(void, nativeInit, jlong instance) {
     int rc = pthread_create(&tid, nullptr, event_thread, mpv_instance);
     if (rc != 0) {
         throwJavaException(env, "nativeInit -> failed to start event thread");
+        mpv_instance->event_thread_id = 0; // mark as not started
         return;
     }
+
+    // Store the valid thread ID
     mpv_instance->event_thread_id = tid;
 }
 
+
 jni_func(void, nativeDestroy, jlong instance) {
     auto *mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance) {
-        ALOGE("nativeDestroy -> called with null instance");
-        return;
-    }
-    if (!mpv_instance->mpv) {
+    if (!mpv_instance || !mpv_instance->mpv) {
         ALOGE("nativeDestroy -> mpv destroy called but it's already destroyed");
-        if (mpv_instance->javaObject) {
-            env->DeleteGlobalRef(mpv_instance->javaObject);
-            mpv_instance->javaObject = nullptr;
-        }
-        delete mpv_instance;
         return;
     }
 
@@ -118,12 +114,8 @@ jni_func(void, nativeDestroy, jlong instance) {
     mpv_wakeup(mpv_instance->mpv);
 
     pthread_t tid = mpv_instance->event_thread_id;
-    if (tid.__opaque != nullptr) {
-        if (!pthread_equal(pthread_self(), tid)) {
-            pthread_join(tid, nullptr);
-        } else {
-            ALOGW("nativeDestroy -> called from event thread; skipping join");
-        }
+    if (tid != 0 && !pthread_equal(pthread_self(), tid)) {
+        pthread_join(tid, nullptr);
     }
 
     if (mpv_instance->javaObject) {
@@ -136,6 +128,7 @@ jni_func(void, nativeDestroy, jlong instance) {
 
     delete mpv_instance;
 }
+
 
 jni_func(void, nativeCommand, jlong instance, jobjectArray jarray) {
     auto *mpv_instance = reinterpret_cast<MPVInstance*>(instance);

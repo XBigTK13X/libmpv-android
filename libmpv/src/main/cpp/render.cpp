@@ -1,7 +1,5 @@
 #include <jni.h>
-#include <android/native_window_jni.h>
 #include <mpv/client.h>
-
 #include "jni_utils.h"
 #include "log.h"
 #include "globals.h"
@@ -22,20 +20,22 @@ jni_func(void, nativeAttachSurface, jlong instance, jobject surface) {
         env->DeleteGlobalRef(mpv_instance->surface);
         mpv_instance->surface = nullptr;
     }
-    if (mpv_instance->native_window) {
-        ANativeWindow_release(mpv_instance->native_window);
-        mpv_instance->native_window = nullptr;
-    }
 
-    mpv_instance->surface = env->NewGlobalRef(surface);
-    mpv_instance->native_window = ANativeWindow_fromSurface(env, surface);
-    if (!mpv_instance->native_window) {
-        throwJavaException(env, "nativeAttachSurface -> failed to get ANativeWindow");
+    jobject globalSurface = env->NewGlobalRef(surface);
+    if (!globalSurface) {
+        throwJavaException(env, "nativeAttachSurface -> failed to create global ref for Surface");
         return;
     }
+    mpv_instance->surface = globalSurface;
 
-    int64_t wid = reinterpret_cast<int64_t>(mpv_instance->native_window);
-    mpv_set_option(mpv_instance->mpv, "wid", MPV_FORMAT_INT64, &wid);
+    int64_t surface_ptr = reinterpret_cast<int64_t>(globalSurface);
+    int r = mpv_set_option(mpv_instance->mpv, "android-surface", MPV_FORMAT_INT64, &surface_ptr);
+    if (r < 0) {
+        ALOGE("nativeAttachSurface -> mpv_set_option(android-surface) failed: %d", r);
+        env->DeleteGlobalRef(globalSurface);
+        mpv_instance->surface = nullptr;
+        throwJavaException(env, "nativeAttachSurface -> mpv_set_option(android-surface) failed");
+    }
 }
 
 jni_func(void, nativeDetachSurface, jlong instance) {
@@ -45,15 +45,11 @@ jni_func(void, nativeDetachSurface, jlong instance) {
         return;
     }
 
-    int64_t wid = 0;
-    mpv_set_option(mpv_instance->mpv, "wid", MPV_FORMAT_INT64, &wid);
+    int64_t zero = 0;
+    mpv_set_option(mpv_instance->mpv, "android-surface", MPV_FORMAT_INT64, &zero);
 
     if (mpv_instance->surface) {
         env->DeleteGlobalRef(mpv_instance->surface);
         mpv_instance->surface = nullptr;
-    }
-    if (mpv_instance->native_window) {
-        ANativeWindow_release(mpv_instance->native_window);
-        mpv_instance->native_window = nullptr;
     }
 }

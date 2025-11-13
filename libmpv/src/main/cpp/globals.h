@@ -2,7 +2,8 @@
 
 #include <atomic>
 
-// create a new struct to hold the mpv_handle and other related data
+struct ANativeWindow;
+
 struct MPVInstance {
     mpv_handle *mpv;
     JavaVM *vm;
