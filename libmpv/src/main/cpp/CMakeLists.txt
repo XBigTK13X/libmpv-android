@@ -5,7 +5,7 @@ project("libmpv")
 add_library(
         player
         SHARED
-        main.cpp render.cpp jni_utils.cpp property.cpp event.cpp
+        main.cpp render.cpp log.cpp jni_utils.cpp property.cpp event.cpp
 )
 
 add_library(
@@ -34,12 +34,4 @@ set_target_properties(
 
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../../../../buildscripts/prefix/${ANDROID_ABI}/include )
 
-find_library(android-lib android)
-
-target_link_libraries(
-        player
-        mpv
-        avcodec
-        log
-        ${android-lib}
-)
+target_link_libraries( player mpv avcodec log )

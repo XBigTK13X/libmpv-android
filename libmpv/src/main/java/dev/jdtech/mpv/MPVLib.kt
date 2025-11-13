@@ -52,6 +52,13 @@ object MPVLib {
     }
 
     @JvmStatic
+    fun removeObservers(){
+        synchronized(observers) {
+            observers.clear()
+        }
+    }
+
+    @JvmStatic
     fun eventProperty(property: String, value: Long) {
         synchronized(observers) {
             for (o in observers)
@@ -112,6 +119,13 @@ object MPVLib {
     fun removeLogObserver(o: LogObserver) {
         synchronized(log_observers) {
             log_observers.remove(o)
+        }
+    }
+
+    @JvmStatic
+    fun removeLogObservers() {
+        synchronized(log_observers) {
+            log_observers.clear()
         }
     }
 

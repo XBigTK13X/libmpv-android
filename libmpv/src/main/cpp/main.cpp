@@ -4,9 +4,9 @@
 #include <ctime>
 #include <clocale>
 #include <atomic>
-#include <thread>
 
 #include <mpv/client.h>
+
 #include <pthread.h>
 
 extern "C" {
@@ -16,179 +16,90 @@ extern "C" {
 #include "log.h"
 #include "jni_utils.h"
 #include "event.h"
-#include "globals.h"
 
 #define ARRAYLEN(a) (sizeof(a)/sizeof(a[0]))
 
 extern "C" {
-    jni_func(jlong, nativeCreate, jobject thiz, jobject appctx);
-    jni_func(void, nativeInit, jlong instance);
-    jni_func(void, nativeDestroy, jlong instance);
-    jni_func(void, nativeCommand, jlong instance, jobjectArray jarray);
+    jni_func(void, create, jobject appctx);
+    jni_func(void, init);
+    jni_func(void, destroy);
+
+    jni_func(void, command, jobjectArray jarray);
 };
 
-static void prepare_environment(JNIEnv *env, jobject appctx, MPVInstance* instance) {
+JavaVM *g_vm;
+mpv_handle *g_mpv;
+std::atomic<bool> g_event_thread_request_exit(false);
+
+static pthread_t event_thread_id;
+
+static void prepare_environment(JNIEnv *env, jobject appctx) {
     setlocale(LC_NUMERIC, "C");
 
-    if (!env->GetJavaVM(&instance->vm) && instance->vm) {
-        av_jni_set_java_vm(instance->vm, nullptr);
-    }
+    if (!env->GetJavaVM(&g_vm) && g_vm)
+        av_jni_set_java_vm(g_vm, NULL);
 
-    if (!instance->methods_initialized) {
-        instance->methods_initialized = init_methods_cache(env, instance->javaObject);
-    }
+    jobject global_appctx = env->NewGlobalRef(appctx);
+    if (global_appctx)
+        av_jni_set_android_app_ctx(global_appctx, NULL);
+
+    init_methods_cache(env);
 }
 
-jni_func(jlong, nativeCreate, jobject thiz, jobject appctx) {
-    auto *instance = new MPVInstance();
+jni_func(void, create, jobject appctx) {
+    prepare_environment(env, appctx);
 
-    instance->event_thread_request_exit = false;
-    instance->event_thread_id = pthread_t{};
-    instance->mpv = nullptr;
-    instance->javaObject = nullptr;
-    instance->surface = nullptr;
+    if (g_mpv)
+        die("mpv is already initialized");
 
-    jobject global = env->NewGlobalRef(thiz);
-    if (!global) {
-        delete instance;
-        throwJavaException(env, "nativeCreate -> failed to create global ref");
-        return -1;
-    }
-    instance->javaObject = global;
+    g_mpv = mpv_create();
+    if (!g_mpv)
+        die("context init failed");
 
-    prepare_environment(env, appctx, instance);
-
-    instance->mpv = mpv_create();
-    if (!instance->mpv) {
-        env->DeleteGlobalRef(instance->javaObject);
-        instance->javaObject = nullptr;
-        delete instance;
-        throwJavaException(env, "nativeCreate -> context init failed");
-        return -1;
-    }
-
-    mpv_request_log_messages(instance->mpv, "v");
-
-    return reinterpret_cast<jlong>(instance);
+    mpv_request_log_messages(g_mpv, "v");
 }
 
-jni_func(void, nativeInit, jlong instance) {
-    auto *mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance) {
-        throwJavaException(env, "nativeInit -> instance is null");
-        return;
-    }
-    if (!mpv_instance->mpv) {
-        throwJavaException(env, "nativeInit -> mpv is not created");
-        return;
-    }
+jni_func(void, init) {
+    if (!g_mpv)
+        die("mpv is not created");
 
-    if (mpv_initialize(mpv_instance->mpv) < 0) {
-        throwJavaException(env, "nativeInit -> mpv init failed");
-        return;
-    }
+    if (mpv_initialize(g_mpv) < 0)
+        die("mpv init failed");
 
-    mpv_instance->event_thread_request_exit = false;
-
-    pthread_t tid{};
-    int rc = pthread_create(&tid, nullptr, event_thread, mpv_instance);
-    if (rc != 0) {
-        throwJavaException(env, "nativeInit -> failed to start event thread");
-        mpv_instance->event_thread_id = 0; // mark as not started
-        return;
-    }
-
-    // Store the valid thread ID
-    mpv_instance->event_thread_id = tid;
+    g_event_thread_request_exit = false;
+    if (pthread_create(&event_thread_id, NULL, event_thread, NULL) != 0)
+        die("thread create failed");
+    pthread_setname_np(event_thread_id, "event_thread");
 }
 
-
-jni_func(void, nativeDestroy, jlong instance) {
-    auto *mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance || !mpv_instance->mpv) {
-        ALOGE("nativeDestroy -> mpv destroy called but it's already destroyed");
+jni_func(void, destroy) {
+    if (!g_mpv) {
+        ALOGV("mpv destroy called but it's already destroyed");
         return;
     }
 
-    mpv_instance->event_thread_request_exit = true;
-    mpv_wakeup(mpv_instance->mpv);
+    // poke event thread and wait for it to exit
+    g_event_thread_request_exit = true;
+    mpv_wakeup(g_mpv);
+    pthread_join(event_thread_id, NULL);
 
-    pthread_t tid = mpv_instance->event_thread_id;
-    if (tid != 0 && !pthread_equal(pthread_self(), tid)) {
-        pthread_join(tid, nullptr);
-    }
-
-    if (mpv_instance->javaObject) {
-        env->DeleteGlobalRef(mpv_instance->javaObject);
-        mpv_instance->javaObject = nullptr;
-    }
-
-    mpv_terminate_destroy(mpv_instance->mpv);
-    mpv_instance->mpv = nullptr;
-
-    delete mpv_instance;
+    mpv_terminate_destroy(g_mpv);
+    g_mpv = NULL;
 }
 
+jni_func(void, command, jobjectArray jarray) {
+    CHECK_MPV_INIT();
 
-jni_func(void, nativeCommand, jlong instance, jobjectArray jarray) {
-    auto *mpv_instance = reinterpret_cast<MPVInstance*>(instance);
-    if (!mpv_instance || !mpv_instance->mpv) {
-        throwJavaException(env, "nativeCommand -> mpv is not initialized");
-        return;
-    }
-    if (mpv_instance->event_thread_request_exit) {
-        ALOGW("nativeCommand -> called during destroy; ignoring");
-        return;
-    }
+    const char *arguments[128] = { 0 };
+    int len = env->GetArrayLength(jarray);
+    if (len >= ARRAYLEN(arguments))
+        die("too many command arguments");
 
-    const jsize len = env->GetArrayLength(jarray);
-    if (len < 0) {
-        throwJavaException(env, "nativeCommand -> invalid array length");
-        return;
-    }
-    if (len >= 128) {
-        throwJavaException(env, "nativeCommand -> too many arguments");
-        return;
-    }
+    for (int i = 0; i < len; ++i)
+        arguments[i] = env->GetStringUTFChars((jstring)env->GetObjectArrayElement(jarray, i), NULL);
 
-    const char *arguments[128] = {0};
-    jstring jstrs[128] = {0};
+    mpv_command(g_mpv, arguments);
 
-    for (jsize i = 0; i < len; ++i) {
-        jstring s = static_cast<jstring>(env->GetObjectArrayElement(jarray, i));
-        jstrs[i] = s;
-
-        if (!s) {
-            for (jsize k = 0; k < i; ++k) {
-                if (arguments[k]) env->ReleaseStringUTFChars(jstrs[k], arguments[k]);
-                if (jstrs[k]) env->DeleteLocalRef(jstrs[k]);
-            }
-            throwJavaException(env, "nativeCommand -> null argument element");
-            return;
-        }
-
-        const char *utf = env->GetStringUTFChars(s, nullptr);
-        if (!utf) {
-            for (jsize k = 0; k <= i; ++k) {
-                if (arguments[k]) env->ReleaseStringUTFChars(jstrs[k], arguments[k]);
-                if (jstrs[k]) env->DeleteLocalRef(jstrs[k]);
-            }
-            throwJavaException(env, "nativeCommand -> OOM converting string");
-            return;
-        }
-
-        arguments[i] = utf;
-    }
-
-    int rc = mpv_command(mpv_instance->mpv, arguments);
-
-    for (jsize i = 0; i < len; ++i) {
-        env->ReleaseStringUTFChars(jstrs[i], arguments[i]);
-        env->DeleteLocalRef(jstrs[i]);
-    }
-
-    if (rc < 0) {
-        throwJavaException(env, "nativeCommand -> mpv_command failed");
-        return;
-    }
+    for (int i = 0; i < len; ++i)
+        env->ReleaseStringUTFChars((jstring)env->GetObjectArrayElement(jarray, i), arguments[i]);
 }
