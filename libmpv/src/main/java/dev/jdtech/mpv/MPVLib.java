@@ -11,17 +11,20 @@ import android.content.Context;
 import android.view.Surface;
 
 import androidx.annotation.IntDef;
+
 import androidx.annotation.NonNull;
 
 @SuppressWarnings("unused")
 public class MPVLib {
 
     private static volatile Boolean nativeLoadComplete = false;
+
     private final List<EventObserver> observers = new ArrayList<>();
     private final List<LogObserver> log_observers = new ArrayList<>();
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private boolean swallowExceptions;
+    private final boolean swallowExceptions;
 
     private long nativeInstance;
     private boolean created;
@@ -38,7 +41,7 @@ public class MPVLib {
     }
 
     public MPVLib(boolean swallow) {
-        swallowExceptions = swallow;
+        this.swallowExceptions = swallow;
         loadNativeLibraries();
         nativeInstance = 0;
     }
@@ -53,11 +56,12 @@ public class MPVLib {
         }
         try {
             nativeInstance = nativeCreate(this, appctx);
-            created = true;
-
+            created = nativeInstance != 0;
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -70,9 +74,12 @@ public class MPVLib {
         }
         try {
             nativeInit(nativeInstance);
+            inited = true;
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -88,10 +95,15 @@ public class MPVLib {
             try {
                 nativeDestroy(nativeInstance);
                 destroyed = true;
+                nativeInstance = 0;
             } catch (Exception e) {
                 if (!swallowExceptions) {
                     throw new RuntimeException(e);
+                } else {
+                    e.printStackTrace();
                 }
+            } finally {
+                executor.shutdown();
             }
         });
     }
@@ -104,10 +116,15 @@ public class MPVLib {
         try {
             nativeDestroy(nativeInstance);
             destroyed = true;
+            nativeInstance = 0;
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
+        } finally {
+            executor.shutdown();
         }
     }
 
@@ -122,6 +139,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -138,6 +157,8 @@ public class MPVLib {
             } catch (Exception e) {
                 if (!swallowExceptions) {
                     throw new RuntimeException(e);
+                } else {
+                    e.printStackTrace();
                 }
             }
         });
@@ -154,6 +175,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -169,6 +192,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
             return -1;
         }
@@ -185,6 +210,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
             return null;
         }
@@ -201,6 +228,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -216,6 +245,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
             return null;
         }
@@ -232,6 +263,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -247,6 +280,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
             return null;
         }
@@ -263,6 +298,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -278,6 +315,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
             return null;
         }
@@ -294,6 +333,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -309,6 +350,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -316,7 +359,7 @@ public class MPVLib {
     private native void nativeObserveProperty(long instance, @NonNull String property, @Format int format);
 
     public void addObserver(EventObserver o) {
-        if (isDangerous()) {
+        if (isDangerous() || o == null) {
             return;
         }
         try {
@@ -326,12 +369,14 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
 
     public void removeObserver(EventObserver o) {
-        if (isDangerous()) {
+        if (isDangerous() || o == null) {
             return;
         }
         try {
@@ -341,6 +386,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -356,6 +403,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -364,15 +413,19 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (observers) {
-                for (EventObserver o : observers) {
-                    o.eventProperty(property, value);
+        List<EventObserver> snapshot;
+        synchronized (observers) {
+            snapshot = new ArrayList<>(observers);
+        }
+        for (EventObserver o : snapshot) {
+            try {
+                o.eventProperty(property, value);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
@@ -381,15 +434,19 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (observers) {
-                for (EventObserver o : observers) {
-                    o.eventProperty(property, value);
+        List<EventObserver> snapshot;
+        synchronized (observers) {
+            snapshot = new ArrayList<>(observers);
+        }
+        for (EventObserver o : snapshot) {
+            try {
+                o.eventProperty(property, value);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
@@ -398,15 +455,19 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (observers) {
-                for (EventObserver o : observers) {
-                    o.eventProperty(property, value);
+        List<EventObserver> snapshot;
+        synchronized (observers) {
+            snapshot = new ArrayList<>(observers);
+        }
+        for (EventObserver o : snapshot) {
+            try {
+                o.eventProperty(property, value);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
@@ -415,15 +476,19 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (observers) {
-                for (EventObserver o : observers) {
-                    o.eventProperty(property, value);
+        List<EventObserver> snapshot;
+        synchronized (observers) {
+            snapshot = new ArrayList<>(observers);
+        }
+        for (EventObserver o : snapshot) {
+            try {
+                o.eventProperty(property, value);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
@@ -432,15 +497,19 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (observers) {
-                for (EventObserver o : observers) {
-                    o.eventProperty(property);
+        List<EventObserver> snapshot;
+        synchronized (observers) {
+            snapshot = new ArrayList<>(observers);
+        }
+        for (EventObserver o : snapshot) {
+            try {
+                o.eventProperty(property);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
@@ -449,21 +518,25 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (observers) {
-                for (EventObserver o : observers) {
-                    o.event(eventId);
+        List<EventObserver> snapshot;
+        synchronized (observers) {
+            snapshot = new ArrayList<>(observers);
+        }
+        for (EventObserver o : snapshot) {
+            try {
+                o.event(eventId);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
 
     public void addLogObserver(LogObserver o) {
-        if (isDangerous()) {
+        if (isDangerous() || o == null) {
             return;
         }
         try {
@@ -473,12 +546,14 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
 
     public void removeLogObserver(LogObserver o) {
-        if (isDangerous()) {
+        if (isDangerous() || o == null) {
             return;
         }
         try {
@@ -488,6 +563,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -503,6 +580,8 @@ public class MPVLib {
         } catch (Exception e) {
             if (!swallowExceptions) {
                 throw e;
+            } else {
+                e.printStackTrace();
             }
         }
     }
@@ -511,15 +590,19 @@ public class MPVLib {
         if (isDangerous()) {
             return;
         }
-        try {
-            synchronized (log_observers) {
-                for (LogObserver o : log_observers) {
-                    o.logMessage(prefix, level, text);
+        List<LogObserver> snapshot;
+        synchronized (log_observers) {
+            snapshot = new ArrayList<>(log_observers);
+        }
+        for (LogObserver o : snapshot) {
+            try {
+                o.logMessage(prefix, level, text);
+            } catch (Exception e) {
+                if (!swallowExceptions) {
+                    throw e;
+                } else {
+                    e.printStackTrace();
                 }
-            }
-        } catch (Exception e) {
-            if (!swallowExceptions) {
-                throw e;
             }
         }
     }
