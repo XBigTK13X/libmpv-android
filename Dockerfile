@@ -6,11 +6,13 @@ RUN apt install -y git curl wget sudo
 
 COPY ./ /libmpv
 
+WORKDIR /libmpv/buildscripts
+
+RUN bash ./download.sh
+
+RUN bash ./patch.sh
+
 WORKDIR /libmpv
-
-RUN bash ./buildscripts/download.sh
-
-RUN bash ./buildscripts/patch.sh
 
 RUN bash ./buildscripts/build.sh mpv-android
 
