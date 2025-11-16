@@ -14,6 +14,4 @@ RUN bash ./patch.sh
 
 WORKDIR /libmpv
 
-RUN bash ./buildscripts/build.sh mpv-android
-
 CMD ["bash"]

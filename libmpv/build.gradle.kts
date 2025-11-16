@@ -34,8 +34,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 }
 
@@ -54,7 +54,7 @@ mavenPublishing {
     coordinates(
         groupId = "dev.jdtech.mpv",
         artifactId = "libmpv",
-        version = "0.5.1"
+        version = "0.7.0"
     )
 
     pom {

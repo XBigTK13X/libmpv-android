@@ -18,7 +18,8 @@ v_mbedtls=3.6.4
 v_libplacebo=7.351.0
 v_dav1d=1.5.1
 v_ffmpeg=8.0
-v_mpv=v0.40.0
+v_mpv=0.40.0
+
 
 ## Dependency tree
 # I would've used a dict but putting arrays in a dict is not a thing

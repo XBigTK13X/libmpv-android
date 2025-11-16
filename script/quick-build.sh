@@ -2,6 +2,7 @@
 
 if [ -z "$1" ];then
     echo "Version required (current version below)"
+    echo "Put it in libmpv/build.gradle.kts"
     ls -lt ~/maven-repo/com/libmpv/android-libmpv | head -n 2 | tail -n 1
     exit 1
 fi
