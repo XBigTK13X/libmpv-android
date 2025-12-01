@@ -18,7 +18,8 @@ v_mbedtls=3.6.4
 v_libplacebo=7.351.0
 v_dav1d=1.5.1
 v_ffmpeg=8.0
-v_mpv=0.40.0
+# master on December 01, 2025
+v_mpv=72dbcf119a9ed5082be2f226593194e20f611eea
 
 
 ## Dependency tree
