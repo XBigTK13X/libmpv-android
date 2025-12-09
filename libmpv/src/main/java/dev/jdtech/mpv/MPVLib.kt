@@ -3,8 +3,6 @@ package dev.jdtech.mpv
 import android.content.Context
 import android.view.Surface
 
-// Wrapper for native library
-
 @Suppress("unused")
 object MPVLib {
     init {
@@ -35,12 +33,36 @@ object MPVLib {
 
     external fun observeProperty(property: String, format: Int)
 
+    @Volatile
+    private var shuttingDown: Boolean = false
+
+    private val shutdownLock = Any()
+
+
+    @JvmStatic
+    fun beginShutdown() {
+        synchronized(shutdownLock) {
+            if (shuttingDown) return
+            shuttingDown = true
+
+            synchronized(observers) {
+                observers.clear()
+            }
+            synchronized(log_observers) {
+                log_observers.clear()
+            }
+        }
+    }
+
     private val observers = mutableListOf<EventObserver>()
 
     @JvmStatic
     fun addObserver(o: EventObserver) {
+        if (shuttingDown) return
         synchronized(observers) {
-            observers.add(o)
+            if (!shuttingDown) {
+                observers.add(o)
+            }
         }
     }
 
@@ -60,49 +82,67 @@ object MPVLib {
 
     @JvmStatic
     fun eventProperty(property: String, value: Long) {
+        if (shuttingDown) return
         synchronized(observers) {
-            for (o in observers)
+            if (shuttingDown) return
+            for (o in observers) {
                 o.eventProperty(property, value)
+            }
         }
     }
 
     @JvmStatic
     fun eventProperty(property: String, value: Double) {
+        if (shuttingDown) return
         synchronized(observers) {
-            for (o in observers)
+            if (shuttingDown) return
+            for (o in observers) {
                 o.eventProperty(property, value)
+            }
         }
     }
 
     @JvmStatic
     fun eventProperty(property: String, value: Boolean) {
+        if (shuttingDown) return
         synchronized(observers) {
-            for (o in observers)
+            if (shuttingDown) return
+            for (o in observers) {
                 o.eventProperty(property, value)
+            }
         }
     }
 
     @JvmStatic
     fun eventProperty(property: String, value: String) {
+        if (shuttingDown) return
         synchronized(observers) {
-            for (o in observers)
+            if (shuttingDown) return
+            for (o in observers) {
                 o.eventProperty(property, value)
+            }
         }
     }
 
     @JvmStatic
     fun eventProperty(property: String) {
+        if (shuttingDown) return
         synchronized(observers) {
-            for (o in observers)
+            if (shuttingDown) return
+            for (o in observers) {
                 o.eventProperty(property)
+            }
         }
     }
 
     @JvmStatic
     fun event(eventId: Int) {
+        if (shuttingDown) return
         synchronized(observers) {
-            for (o in observers)
+            if (shuttingDown) return
+            for (o in observers) {
                 o.event(eventId)
+            }
         }
     }
 
@@ -110,8 +150,11 @@ object MPVLib {
 
     @JvmStatic
     fun addLogObserver(o: LogObserver) {
+        if (shuttingDown) return
         synchronized(log_observers) {
-            log_observers.add(o)
+            if (!shuttingDown) {
+                log_observers.add(o)
+            }
         }
     }
 
@@ -131,9 +174,12 @@ object MPVLib {
 
     @JvmStatic
     fun logMessage(prefix: String, level: Int, text: String) {
+        if (shuttingDown) return
         synchronized(log_observers) {
-            for (o in log_observers)
+            if (shuttingDown) return
+            for (o in log_observers) {
                 o.logMessage(prefix, level, text)
+            }
         }
     }
 
